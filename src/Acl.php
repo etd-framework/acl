@@ -12,7 +12,9 @@ namespace EtdSolutions\Acl;
 use Joomla\Database\DatabaseDriver;
 use Joomla\Language\Text;
 use SimpleAcl\Acl as SimpleAcl;
+use SimpleAcl\Resource;
 use SimpleAcl\Role;
+use SimpleAcl\Rule;
 
 /**
  * Classe de gestion des droits utilisateurs.
@@ -30,19 +32,29 @@ class Acl {
     protected $acl;
 
     /**
-     * @var Text Le gestio
+     * @var Text
      */
     protected $text;
 
     /**
-     * @var
+     * @var array
      */
     protected $actions;
 
     /**
-     * @var
+     * @var array
      */
     protected $roles;
+
+    /**
+     * @var array
+     */
+    protected $rules;
+
+    /**
+     * @var array
+     */
+    protected $resources;
 
     /**
      * @var
@@ -69,14 +81,8 @@ class Acl {
         // On instancie le gestionnaire des contrôles d'accès.
         $this->acl = new SimpleAcl();
 
-        // On charge les rôles.
-        $this->loadRoles();
-
-        // On charge les ressources.
-        $this->loadResources();
-
-        // On crée les règles.
-        $this->loadRules();
+        // On charge les règles.
+        $this->load();
 
     }
 
@@ -103,53 +109,182 @@ class Acl {
     }
 
     /**
-     * Méthode pour charger les rôles dans le gestionnaire ACL.
+     * Méthode pour autoriser une action.
      *
-     * Les rôles sont représentés par les groupes utilisateurs.
+     * @param string $group_id
+     * @param string $section
+     * @param string $action
+     *
+     * @return bool True si autorisé, false sinon.
      */
-    public function loadRoles() {
+    public function authorise($group_id, $section, $action) {
 
-        // On initialise les variables;
-        $refs       = array();
-        $roles       = array();
-        $usergroups = $this->getUserGroups();
+        // On s'assure que l'id du groupe est un string.
+        $group_id = (string) $group_id;
 
-        // On construit l'arbre des rôles.
-        foreach ($usergroups as $usergroup) {
-
-            $thisref = &$refs[$usergroup->id];
-            $thisref = new Role($usergroup->id);
-
-            if ($usergroup->parent_id > 0) {
-                $refs[$usergroup->parent_id]->addChild($thisref);
-            }
-
-            // On stocke les rôles dans un tableau pour leur associer les règles plus tard.
-            $roles[$usergroup->id] = &$thisref;
-
-        }
-
-        $this->roles = $roles;
-
-    }
-
-    /**
-     * Méthode pour charger les ressources dans le gestionnaire ACL.
-     */
-    public function loadResources() {
+        return $this->acl->isAllowed($group_id, $section, $action);
 
     }
 
     /**
      * Méthode pour charger les règles dans le gestionnaire ACL.
      */
-    public function loadRules() {
+    protected function load() {
+
+        // On initialise les variables
+        $roles     = $this->getRoles();
+        $resources = $this->getResources();
+        $sections  = $this->getActions();
+        $rules     = $this->getRules();
+
+        // On parcourt les actions par section.
+        foreach ($sections as $section) {
+
+            // Si la section a des actions.
+            if (!empty($section->actions)) {
+
+                // On récupère la ressource.
+                $resource = $resources[$section->name];
+
+                // On crée une règle pour chaque action.
+                foreach ($section->actions as $action) {
+
+                    // On récupère les autorisations des rôles pour cette action.
+                    $ruleValues = $rules[$section->name]->rules->{$action->name};
+
+                    // Et pour chaque rôle.
+                    foreach ($roles as $role) {
+
+                        // On crée une règle ACL pour le couple rôle-action.
+                        $rule = new Rule($action->name);
+                        $rule->setId($action->name . "-" . $role->getName());
+
+                        // Si le rôle est présent dans la règle, il est autorisée à effectuer l'action.
+                        $ruleValue = in_array($role->getName(), $ruleValues);
+
+                        $this->acl->addRule($role, $resource, $rule, $ruleValue);
+
+                    }
+
+                }
+
+            }
+
+        }
 
     }
 
+    /**
+     * Méthode pour charger les rôles.
+     */
+    protected function getRoles() {
+
+        if (empty($this->roles)) {
+
+            // On initialise les variables
+            $refs  = array();
+            $roles = array();
+            $usergroups = $this->getUserGroups();
+
+            // On construit l'arbre des rôles.
+            foreach ($usergroups as $usergroup) {
+
+                $thisref = &$refs[$usergroup->id];
+                $thisref = new Role($usergroup->id);
+
+                if ($usergroup->parent_id > 0) {
+                    $refs[$usergroup->parent_id]->addChild($thisref);
+                }
+
+                // On stocke les rôles dans un tableau pour leur associer les règles plus tard.
+                $roles[$usergroup->id] = &$thisref;
+
+            }
+
+            $this->roles = $roles;
+        }
+
+        return $this->roles;
+
+    }
+
+    /**
+     * Méthode pour charger les règles.
+     */
+    protected function getRules() {
+
+        if (empty($this->rules)) {
+
+            // On initialise les variables
+            $refs  = array();
+            $rules = array();
+            $query = $this->db->getQuery(true);
+
+            // On récupère les règles par ressources.
+            $query->select('id, parent_id, resource, rules')
+                  ->from('#__acl');
+
+            $resourceRules = $this->db->setQuery($query)
+                                      ->loadObjectList();
+
+            // On construit l'arbre des règles.
+            foreach ($resourceRules as $resourceRule) {
+
+                $thisref = &$refs[$resourceRule->id];
+
+                $thisref           = new \stdClass();
+                $thisref->id       = $resourceRule->id;
+                $thisref->resource = $resourceRule->resource;
+                $thisref->rules    = json_decode($resourceRule->rules);
+
+                if ($resourceRule->parent_id > 0) {
+                    $refs[$resourceRule->parent_id]->addChild($thisref);
+                }
+
+                // On stocke les règles dans un tableau.
+                $rules[$resourceRule->resource] = &$thisref;
+
+            }
+
+            $this->rules = $rules;
+        }
+
+        return $this->rules;
+
+    }
+
+    /**
+     * Méthode pour charger les ressources.
+     */
+    protected function getResources() {
+
+        if (empty($this->resources)) {
+
+            // On initialise les variables
+            $resources = array();
+            $actions   = $this->getActions();
+
+            // On parcourt les sections et on en crée des ressources.
+            foreach ($actions as $section) {
+                $resources[$section->name] = new Resource($section->name);
+            }
+
+            $this->resources = $resources;
+
+        }
+
+        return $this->resources;
+
+    }
+
+    /**
+     * Méthode pour charger les groupes utilisateurs.
+     *
+     * @return mixed
+     */
     protected function getUserGroups() {
 
-        if (empty($usergroups)) {
+        if (empty($this->usergroups)) {
 
             $query = $this->db->getQuery(true);
 
@@ -162,28 +297,6 @@ class Acl {
                                    ->loadObjectList();
 
             $this->usergroups = $usergroups;
-
-            /* $refs = array();
-             $list = array();
-
-             foreach ($usergroups as $usergroup) {
-
-                 $thisref = &$refs[$usergroup->id];
-
-                 $thisref            = new \stdClass();
-                 $thisref->id        = $usergroup->id;
-                 $thisref->parent_id = $usergroup->parent_id;
-                 $thisref->name      = $usergroup->title;
-
-                 if ($usergroup->parent_id == 0) {
-                     $list[$usergroup->id] = &$thisref;
-                 } else {
-                     $refs[$usergroup->parent_id]->children[$usergroup->id] = &$thisref;
-                 }
-
-             }
-
-             $this->usergroups = $list;*/
 
         }
 
@@ -222,13 +335,14 @@ class Acl {
                     $tmp->name    = (string)$section['name'];
                     $tmp->actions = array();
 
-                    $actions = $section->xpath("action[@name][@title][@description]");
+                    $actions = $section->xpath("action[@name]");
 
                     if (!empty($actions)) {
 
                         foreach ($actions as $action) {
                             $tmp2       = new \stdClass();
                             $tmp2->name = (string)$action['name'];
+                            $tmp->actions[] = $tmp2;
                         }
 
                         $result[] = $tmp;
