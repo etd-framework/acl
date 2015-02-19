@@ -1,9 +1,8 @@
 {
-  "name": "etdsolutions/model",
-  "type": "etd-package",
+  "name": "etdsolutions/acl",
   "minimum-stability": "dev",
-  "description": "Package Model du Framework ETD",
-  "homepage": "https://github.com/etd-framework/model",
+  "description": "Package ACL du Framework ETD",
+  "homepage": "https://github.com/etd-framework/acl",
   "license": "Apache-2.0",
   "authors": [
     {
