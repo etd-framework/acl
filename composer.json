@@ -1,0 +1,25 @@
+{
+  "name": "etdsolutions/model",
+  "type": "etd-package",
+  "minimum-stability": "dev",
+  "description": "Package Model du Framework ETD",
+  "homepage": "https://github.com/etd-framework/model",
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Jean-Baptiste Alleaume",
+      "email": "jb.alleaume@etd-solutions.com",
+      "homepage": "http://alleau.me",
+      "role": "Manager"
+    }
+  ],
+  "require": {
+    "php": ">=5.4",
+    "alexshelkov/simpleacl": "2.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "EtdSolutions\\Acl\\": "src/"
+    }
+  }
+}
