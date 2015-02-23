@@ -62,6 +62,11 @@ class Acl {
     protected $usergroups;
 
     /**
+     * @var array
+     */
+    protected $groupsByUser = array();
+
+    /**
      * @var  Acl  L'instance de la classe de gestion.
      */
     private static $instance;
@@ -109,20 +114,54 @@ class Acl {
     }
 
     /**
-     * Méthode pour autoriser une action.
+     * Méthode pour contrôler les droits d'accès d'un groupe pour une action.
      *
-     * @param string $group_id
-     * @param string $section
-     * @param string $action
+     * @param string $group_id L'identifiant du groupe.
+     * @param string $section  L'identifiant de la section.
+     * @param string $action   L'identifiant de l'action.
      *
      * @return bool True si autorisé, false sinon.
      */
-    public function authorise($group_id, $section, $action) {
+    public function checkGroup($group_id, $section, $action) {
 
         // On s'assure que l'id du groupe est un string.
         $group_id = (string) $group_id;
 
         return $this->acl->isAllowed($group_id, $section, $action);
+
+    }
+
+    /**
+     * Méthode pour contrôler les droits d'accès d'un utilisateur pour une action.
+     *
+     * @param int    $user_id L'identifiant du groupe.
+     * @param string $section  L'identifiant de la section.
+     * @param string $action   L'identifiant de l'action.
+     *
+     * @return bool True si autorisé, false sinon.
+     */
+    public function checkUser($user_id, $section, $action) {
+
+        // On s'assure que l'id du groupe est un integer.
+        $user_id = (int) $user_id;
+
+        // On récupère les infos nécessaires.
+        $roles = $this->getRoles();
+        $ids   = $this->getGroupsByUser($user_id);
+
+        // On crée un tableau des rôles.
+        $groups = new Role\RoleAggregate();
+        foreach ($ids as $group_id) {
+            $groups->addRole($roles[$group_id]);
+        }
+
+        // On contrôle si l'utilisateur est un dieu.
+        if ($this->acl->isAllowed($groups, 'app', 'admin')) {
+            return true;
+        }
+
+        // On contrôle les groupes.
+        return $this->acl->isAllowed($groups, $section, $action);
 
     }
 
@@ -302,6 +341,53 @@ class Acl {
 
         return $this->usergroups;
 
+    }
+
+    /**
+     * Méthode pour retourner une liste des groupes liés à un utilisateur.
+     *
+     * @param   integer  $userId     L'identifiant de l'utilisateur.
+     *
+     * @return  array   La liste des groupes.
+     */
+    public function getGroupsByUser($userId) {
+
+        if (!isset($this->groupsByUser[$userId])) {
+
+            //@TODO: avoir cette variable depuis la config de l'appli.
+            $guestUsergroup = 2;
+
+            // Utilisateur invité
+            if (empty($userId)) {
+                $result = array($guestUsergroup);
+            } else { // Utilisateur enregistré
+
+                // Build the database query to get the rules for the asset.
+                $query = $this->db->getQuery(true)->select('a.id');
+
+                if (empty($userId)) {
+                    $query->from('#__usergroups AS a')
+                          ->where('a.id = ' . (int)$guestUsergroup);
+                } else {
+                    $query->from('#__user_usergroup_map AS map')
+                          ->where('map.user_id = ' . (int)$userId)
+                          ->join('LEFT', '#__usergroups AS a ON a.id = map.group_id');
+                }
+
+                $result = $this->db->setQuery($query)
+                                   ->loadColumn();
+
+                if (empty($result)) {
+                    $result = array('1');
+                } else {
+                    $result = array_unique($result);
+                }
+            }
+
+            $this->groupsByUser[$userId] = $result;
+        }
+
+        return $this->groupsByUser[$userId];
     }
 
     /**
