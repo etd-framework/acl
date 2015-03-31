@@ -9,6 +9,7 @@
 
 namespace EtdSolutions\Acl;
 
+use EtdSolutions\Language\LanguageFactory;
 use Joomla\Database\DatabaseDriver;
 use Joomla\Language\Text;
 use SimpleAcl\Acl as SimpleAcl;
@@ -75,13 +76,14 @@ class Acl {
      * Constructeur
      *
      * @param DatabaseDriver $db Le gestionnaire de la base de données.
-     * @param Text           $text
      */
-    public function __construct(DatabaseDriver $db, Text $text) {
+    public function __construct(DatabaseDriver $db) {
 
         // Paramètres
-        $this->db   = $db;
-        $this->text = $text;
+        $this->db = $db;
+
+        // Texte
+        $this->text = (new LanguageFactory())->getText();
 
         // On instancie le gestionnaire des contrôles d'accès.
         $this->acl = new SimpleAcl();
@@ -95,19 +97,18 @@ class Acl {
      * Retourne l'objet global Acl, en le créant seulement il n'existe pas déjà.
      *
      * @param DatabaseDriver $db Le gestionnaire de base de données.
-     * @param Text           $text
      *
      * @return  Acl  L'objet Acl.
      */
-    public static function getInstance($db = null, $text = null) {
+    public static function getInstance($db = null) {
 
         if (empty(self::$instance)) {
 
-            if (is_null($db) || is_null($text)) {
+            if (is_null($db)) {
                 throw new \RuntimeException('Empty params');
             }
 
-            self::$instance = new Acl($db, $text);
+            self::$instance = new Acl($db);
         }
 
         return self::$instance;
@@ -134,9 +135,9 @@ class Acl {
     /**
      * Méthode pour contrôler les droits d'accès d'un utilisateur pour une action.
      *
-     * @param int    $user_id L'identifiant du groupe.
-     * @param string $section  L'identifiant de la section.
-     * @param string $action   L'identifiant de l'action.
+     * @param int    $user_id L'identifiant de l'utilisateur.
+     * @param string $section L'identifiant de la section.
+     * @param string $action  L'identifiant de l'action.
      *
      * @return bool True si autorisé, false sinon.
      */
