@@ -16,7 +16,7 @@
     "php": ">=5.4",
     "alexshelkov/simpleacl": "2.*",
     "joomla/database": "~1.0",
-    "joomla/language": "2.*@dev"
+    "etdsolutions/language": "@dev"
   },
   "autoload": {
     "psr-4": {
