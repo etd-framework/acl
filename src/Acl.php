@@ -195,14 +195,16 @@ class Acl {
                     // Et pour chaque rôle.
                     foreach ($roles as $role) {
 
-                        // On crée une règle ACL pour le couple rôle-action.
+                        // On crée une règle ACL pour le tri action-rôle-ressource.
                         $rule = new Rule($action->name);
-                        $rule->setId($action->name . "-" . $role->getName());
+                        $rule->setRole($role);
+                        $rule->setResource($resource);
 
                         // Si le rôle est présent dans la règle, il est autorisée à effectuer l'action.
-                        $ruleValue = in_array($role->getName(), $ruleValues);
+                        $rule->setAction(in_array((int)$role->getName(), $ruleValues));
 
-                        $this->acl->addRule($role, $resource, $rule, $ruleValue);
+                        // On ajoute la règle au gestionnaire.
+                        $this->acl->addRule($rule);
 
                     }
 
@@ -231,6 +233,7 @@ class Acl {
 
                 $thisref = &$refs[$usergroup->id];
                 $thisref = new Role($usergroup->id);
+                $thisref->title = $usergroup->title;
 
                 if ($usergroup->parent_id > 0) {
                     $refs[$usergroup->parent_id]->addChild($thisref);
