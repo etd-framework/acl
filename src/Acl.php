@@ -114,6 +114,10 @@ class Acl {
         return self::$instance;
     }
 
+    public function getSimpleAcl() {
+        return $this->acl;
+    }
+
     /**
      * Méthode pour contrôler les droits d'accès d'un groupe pour une action.
      *
@@ -195,16 +199,23 @@ class Acl {
                     // Et pour chaque rôle.
                     foreach ($roles as $role) {
 
-                        // On crée une règle ACL pour le tri action-rôle-ressource.
-                        $rule = new Rule($action->name);
-                        $rule->setRole($role);
-                        $rule->setResource($resource);
+                        // 3 valeurs possibles :
+                        //   1    => le groupe est présent et autorisé
+                        //   0    => le groupe est présent et non autorisé
+                        //   null => le groupe n'est pas présent et donc hérite des droits du parent.
 
-                        // Si le rôle est présent dans la règle, il est autorisée à effectuer l'action.
-                        $rule->setAction(in_array((int)$role->getName(), $ruleValues));
+                        // Le groupe est présent, on crée une règle ACL pour le tri action-rôle-ressource.
+                        if (property_exists($ruleValues, $role->getName())) {
 
-                        // On ajoute la règle au gestionnaire.
-                        $this->acl->addRule($rule);
+                            $rule = new Rule($action->name);
+                            $rule->setRole($role);
+                            $rule->setResource($resource);
+                            $rule->setAction((bool) $ruleValues->{$role->getName()});
+
+                            // On ajoute la règle au gestionnaire.
+                            $this->acl->addRule($rule);
+
+                        }
 
                     }
 
