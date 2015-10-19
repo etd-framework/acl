@@ -205,7 +205,7 @@ class Acl {
                         //   null => le groupe n'est pas présent et donc hérite des droits du parent.
 
                         // Le groupe est présent, on crée une règle ACL pour le tri action-rôle-ressource.
-                        if (property_exists($ruleValues, $role->getName())) {
+                        if (array_key_exists($role->getName(), $ruleValues)) {
 
                             $rule = new Rule($action->name);
                             $rule->setRole($role);
