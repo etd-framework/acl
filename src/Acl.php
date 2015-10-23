@@ -194,29 +194,31 @@ class Acl {
                 foreach ($section->actions as $action) {
 
                     // On récupère les autorisations des rôles pour cette action.
-                    $ruleValues = $rules[$section->name]->rules->{$action->name};
+                    if (isset($rules[$section->name]) && isset($rules[$section->name]->rules->{$action->name})) {
+                        $ruleValues = $rules[$section->name]->rules->{$action->name};
 
-                    // Et pour chaque rôle.
-                    foreach ($roles as $role) {
+                        // Et pour chaque rôle.
+                        foreach ($roles as $role) {
 
-                        // 3 valeurs possibles :
-                        //   1    => le groupe est présent et autorisé
-                        //   0    => le groupe est présent et non autorisé
-                        //   null => le groupe n'est pas présent et donc hérite des droits du parent.
-                        // Le groupe est présent, on crée une règle ACL pour le tri action-rôle-ressource.
+                            // 3 valeurs possibles :
+                            //   1    => le groupe est présent et autorisé
+                            //   0    => le groupe est présent et non autorisé
+                            //   null => le groupe n'est pas présent et donc hérite des droits du parent.
+                            // Le groupe est présent, on crée une règle ACL pour le tri action-rôle-ressource.
 
-                        if (is_object($ruleValues) && property_exists($ruleValues, $role->getName())) {
+                            if (is_object($ruleValues) && property_exists($ruleValues, $role->getName())) {
 
-                            $rule = new Rule($action->name);
-                            $rule->setRole($role);
-                            $rule->setResource($resource);
-                            $rule->setAction((bool) $ruleValues->{$role->getName()});
+                                $rule = new Rule($action->name);
+                                $rule->setRole($role);
+                                $rule->setResource($resource);
+                                $rule->setAction((bool) $ruleValues->{$role->getName()});
 
-                            // On ajoute la règle au gestionnaire.
-                            $this->acl->addRule($rule);
+                                // On ajoute la règle au gestionnaire.
+                                $this->acl->addRule($rule);
+
+                            }
 
                         }
-
                     }
 
                 }
