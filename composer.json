@@ -15,7 +15,7 @@
   "require": {
     "php": ">=5.4",
     "alexshelkov/simpleacl": "2.*",
-    "joomla/database": "~1.0",
+    "joomla/database": "~2.0@dev",
     "etdsolutions/language": "@dev"
   },
   "autoload": {
