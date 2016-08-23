@@ -129,10 +129,15 @@ class Acl {
      */
     public function checkGroup($group_id, $section, $action) {
 
-        // On s'assure que l'id du groupe est un string.
-        $group_id = (string) $group_id;
+        // On récupère les rôles.
+        $roles = $this->getRoles();
 
-        return $this->acl->isAllowed($group_id, $section, $action);
+        // On crée un tableau avec notre rôle.
+        $groups = new Role\RoleAggregate();
+        $groups->addRole($roles[$group_id]);
+
+        // On contrôle le groupe.
+        return $this->acl->isAllowed($groups, $section, $action);
 
     }
 
@@ -301,7 +306,6 @@ class Acl {
                 $rules[$resourceRule->resource] = &$thisref;
 
             }
-
             $this->rules = $rules;
         }
 
