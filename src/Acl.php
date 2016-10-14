@@ -237,7 +237,7 @@ class Acl {
     /**
      * Méthode pour charger les rôles.
      */
-    protected function getRoles() {
+    public function getRoles() {
 
         if (empty($this->roles)) {
 
